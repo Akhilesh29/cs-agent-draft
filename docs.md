@@ -2,8 +2,6 @@
 
 this document explains the full urvann customer support (cs) agent system in detail. for a quick visual overview, see [readme.md](readme.md).
 
-**architecture diagram files:** [architecture-detailed.png](assets/architecture-detailed.png) · [architecture-detailed.mmd](assets/architecture-detailed.mmd) · [architecture-detailed.svg](assets/architecture-detailed.svg)
-
 ---
 
 ## table of contents
