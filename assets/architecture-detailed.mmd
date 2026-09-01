@@ -1,0 +1,174 @@
+flowchart TB
+    subgraph customer["① customer layer"]
+        direction TB
+        ua["urvann main app<br/>shopping · orders · profile"]
+        params["entry params<br/>token · txn_id optional"]
+        csa["cs agent app<br/>support.urvann.com/chat<br/>chat ui · websocket client"]
+        ua -->|"tap support"| params
+        params --> csa
+    end
+
+    subgraph agent["② cs agent layer · new"]
+        direction TB
+        chat["chat api<br/>post /support/chat<br/>rest + websocket"]
+        auth["customer auth<br/>validate token · extract user_id<br/>scope all tool calls"]
+
+        subgraph orch["llm orchestrator · intent → tool → reply"]
+            direction TB
+            o1["1 · load context<br/>session history + txn_id"]
+            o2["2 · classify intent<br/>tracking · refund · stock · care · escalate"]
+            o3["3 · select tool(s)<br/>map intent to api calls"]
+            o4["4 · execute tools<br/>genie · storehippo · kb"]
+            o5["5 · generate reply<br/>natural language from real data"]
+            o6["6 · decide next step<br/>answer · clarify · ticket · escalate"]
+            o1 --> o2 --> o3 --> o4 --> o5 --> o6
+        end
+
+        conv[("conversation store<br/>session_id · user_id · txn_id<br/>messages[] · metadata<br/>audit · handoff transcript")]
+        kb[("policy kb<br/>refund rules · return policy<br/>plant care faqs · delivery rules<br/>escalation criteria")]
+
+        csa <-->|"rest / websocket"| chat
+        chat --> auth
+        auth --> o1
+        o5 --> conv
+        o4 --> kb
+    end
+
+    subgraph tools["③ support tool apis · new"]
+        direction TB
+
+        subgraph order_tools["order & tracking tools → genie 2.0"]
+            direction LR
+            t1["get_customer_orders<br/>→ orderdetails"]
+            t2["get_order_details<br/>→ orderdetails"]
+            t3["get_order_tracking<br/>→ trackingroutes"]
+        end
+
+        subgraph action_tools["action tools → genie 2.0"]
+            direction LR
+            t7["create_ticket<br/>→ issueroutes<br/>sets on_customer_support"]
+            t8["escalate_to_human<br/>→ escalation queue<br/>+ full transcript"]
+        end
+
+        subgraph refund_tool["refund tool → genie + storehippo"]
+            t4["get_refund_status<br/>→ refundlog + ms.returns/refunds"]
+        end
+
+        subgraph product_tools["product tools → storehippo"]
+            direction LR
+            t5["check_product_stock<br/>→ ms.products"]
+            t6["search_products<br/>→ ms.products"]
+        end
+    end
+
+    o3 --> order_tools
+    o3 --> action_tools
+    o3 --> refund_tool
+    o3 --> product_tools
+
+    subgraph genie["④ genie 2.0 · existing"]
+        direction TB
+        g_api["existing apis"]
+        g_track["trackingroutes<br/>tracker[] · rider_name · attemptno"]
+        g_issue["issueroutes<br/>tickets · on_customer_support flag"]
+        g_order["orderdetails<br/>items[] · shipping_address · status"]
+        g_db[("mongodb · store_hippo.orders<br/>txn_id · status · items[] · tracker[]<br/>rider_name · shipping_address · user_id<br/>on_customer_support · attemptno")]
+        g_refund[("refundlog<br/>refund_amount · rma_number<br/>refund_mode · status")]
+        g_api --> g_track & g_issue & g_order
+        g_track & g_order --> g_db
+        g_issue --> g_db
+        g_api --> g_refund
+    end
+
+    subgraph sh["⑤ storehippo · existing"]
+        direction TB
+        sh_api["storehippo rest api<br/>urvann.com · urvann.storehippo.com"]
+        sh_prod["ms.products<br/>sku · price · inventory · publish · description"]
+        sh_ord["ms.orders<br/>financial_status · payment"]
+        sh_ret["ms.returns + ms.refunds<br/>rma_number · refund status"]
+        sh_addr["ms.user_addresses<br/>address update · status guard"]
+        sh_api --> sh_prod & sh_ord & sh_ret & sh_addr
+    end
+
+    t1 & t2 & t3 --> g_api
+    t7 & t8 --> g_api
+    t4 --> g_api & sh_api
+    t5 & t6 --> sh_api
+
+    subgraph intent["⑥ customer question → routing"]
+        direction TB
+        i1["where is my order?"] --> t3
+        i2["what did i order?"] --> t1 & t2
+        i3["where is my refund?"] --> t4
+        i4["is plant in stock?"] --> t5 & t6
+        i5["change address"] --> sh_addr
+        i6["plant care tips"] --> kb
+        i7["speak to human"] --> t8
+        i8["report an issue"] --> t7
+    end
+
+    subgraph e2e["example · where is my order?"]
+        direction LR
+        e1["tap support"] --> e2["open chat + auth"]
+        e2 --> e3["send message"]
+        e3 --> e4["classify intent"]
+        e4 --> e5["get_order_tracking"]
+        e5 --> e6["read tracker from mongodb"]
+        e6 --> e7["compose reply"]
+        e7 --> e8["stream to customer"]
+    end
+
+    style customer fill:#e8f4fd,stroke:#2196F3,color:#0d47a1
+    style agent fill:#fff3e0,stroke:#FF9800,color:#e65100
+    style tools fill:#f3e5f5,stroke:#9C27B0,color:#4a148c
+    style genie fill:#e8f5e9,stroke:#4CAF50,color:#1b5e20
+    style sh fill:#fce4ec,stroke:#E91E63,color:#880e4f
+    style intent fill:#f5f5f5,stroke:#9E9E9E,color:#424242
+    style e2e fill:#e3f2fd,stroke:#1976D2,color:#0d47a1
+    style orch fill:#fff8e1,stroke:#FFB300,color:#ff6f00
+
+%% ---------------------------------------------------------------------------
+%% cs agent architecture — urvann customer support system
+%% source diagram for readme png · docs.md has full written documentation
+%% ---------------------------------------------------------------------------
+%% layer ① customer: urvann main app passes token + txn_id to cs agent chat ui
+%% layer ② cs agent: chat api · auth · llm orchestrator · conv store · policy kb
+%% layer ③ tools: get_customer_orders · get_order_details · get_order_tracking
+%%              get_refund_status · check_product_stock · search_products
+%%              create_ticket · escalate_to_human
+%% layer ④ genie 2.0: trackingroutes · issueroutes · orderdetails · mongodb · refundlog
+%% layer ⑤ storehippo: ms.products · ms.orders · ms.returns · ms.user_addresses
+%% layer ⑥ intents: maps customer questions to tools or knowledge base
+%% ---------------------------------------------------------------------------
+%% tool routing reference
+%% get_customer_orders    → genie orderdetails        → list orders for user_id
+%% get_order_details      → genie orderdetails        → items · address · status
+%% get_order_tracking     → genie trackingroutes      → tracker[] · rider · attempts
+%% get_refund_status      → genie refundlog + sh returns → rma · amount · status
+%% check_product_stock    → storehippo ms.products      → sku · inventory · price
+%% search_products        → storehippo ms.products      → keyword · category search
+%% create_ticket          → genie issueroutes           → on_customer_support flag
+%% escalate_to_human      → genie queue + conv store    → transcript handoff package
+%% ---------------------------------------------------------------------------
+%% intent routing reference
+%% where is my order?     → get_order_tracking
+%% what did i order?      → get_customer_orders + get_order_details
+%% where is my refund?    → get_refund_status
+%% is plant in stock?     → check_product_stock + search_products
+%% change address         → ms.user_addresses with dispatch status guard
+%% plant care tips        → policy kb retrieval only
+%% speak to human         → escalate_to_human
+%% report an issue        → create_ticket
+%% ---------------------------------------------------------------------------
+%% end-to-end flow · where is my order?
+%% 1 customer taps support in urvann app with txn_id context
+%% 2 cs agent app opens at support.urvann.com/chat with token
+%% 3 websocket connects to post /support/chat
+%% 4 customer auth validates token and binds user_id to session
+%% 5 llm orchestrator loads session history and txn_id from context
+%% 6 intent classified as order tracking
+%% 7 get_order_tracking called with authenticated txn_id scope
+%% 8 genie trackingroutes reads tracker[] rider_name attemptno from mongodb
+%% 9 llm composes natural language reply from structured tool response
+%% 10 reply streamed to customer and persisted in conversation store
+%% ---------------------------------------------------------------------------

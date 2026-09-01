@@ -1,8 +1,0 @@
-# docs-only repo — hide all languages from github profile
-* linguist-documentation
-
-*.png linguist-vendored
-assets/** linguist-vendored
-
-*.html linguist-detectable=false
-*.mmd linguist-detectable=false
