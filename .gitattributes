@@ -1,0 +1,7 @@
+# exclude docs and assets from github language stats
+*.md linguist-documentation
+*.png linguist-vendored
+assets/** linguist-vendored
+
+# never count html toward repo language
+*.html linguist-detectable=false
