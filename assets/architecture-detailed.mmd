@@ -1,33 +1,3 @@
-# cs agent draft
-
-architecture overview for the urvann customer support (cs) agent system.
-
-> for full details on every layer, tool, data model, and flow — see [docs.md](docs.md).
-
-## system architecture
-
-detailed end-to-end diagram covering customer entry, llm orchestrator steps, all 8 tool apis, backend integrations, intent routing, and an example conversation flow.
-
-![detailed cs agent architecture](assets/architecture-detailed.png)
-
-> diagram sources: [architecture-detailed.mmd](assets/architecture-detailed.mmd) · [svg](assets/architecture-detailed.svg) · [interactive html](assets/render-diagram.html)
-
-### diagram sections
-
-| # | section | what it covers |
-|---|---------|----------------|
-| ① | customer layer | main app → entry params (token, txn_id) → cs agent chat ui |
-| ② | cs agent layer | chat api, auth, 6-step llm orchestrator, conversation store, policy kb |
-| ③ | support tool apis | 8 tools grouped by backend — genie, storehippo, or both |
-| ④ | genie 2.0 | trackingroutes, issueroutes, orderdetails, mongodb, refundlog |
-| ⑤ | storehippo | rest api, ms.products, ms.orders, ms.returns/refunds, ms.user_addresses |
-| ⑥ | intent routing | customer questions mapped to specific tools or kb |
-| — | example flow | step-by-step path for "where is my order?" |
-
-<details>
-<summary>mermaid diagram (click to expand)</summary>
-
-```mermaid
 flowchart TB
     subgraph customer["① customer layer"]
         direction TB
@@ -156,16 +126,3 @@ flowchart TB
     style intent fill:#f5f5f5,stroke:#9E9E9E,color:#424242
     style e2e fill:#e3f2fd,stroke:#1976D2,color:#0d47a1
     style orch fill:#fff8e1,stroke:#FFB300,color:#ff6f00
-```
-
-</details>
-
-## layers
-
-| layer | description |
-|-------|-------------|
-| customer | urvann main app routes users to the cs agent app with auth token and transaction id |
-| cs agent (new) | chat api, llm orchestrator, conversation store, and policy knowledge base |
-| support tools (new) | tool apis for orders, tracking, refunds, stock, tickets, and escalation |
-| genie 2.0 (existing) | order tracking, issues, and refund data via mongodb |
-| storehippo (existing) | product catalog, orders, returns/refunds, and address management |
